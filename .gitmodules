@@ -1,0 +1,3 @@
+[submodule "freyr-js"]
+	path = freyr-js
+	url = https://github.com/orsett0/freyr-js
