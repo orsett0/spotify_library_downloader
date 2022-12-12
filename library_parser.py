@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import json
 
 # I need to download every track that's in here, and every album and artist marked as "inLibrary"
@@ -21,7 +23,7 @@ data = {}
 
 
 def addArtist(artistName: str, spotify_uri=None, albums={}, inLibrary=False):
-    if data[artistName] is not None:
+    if artistName in data:
         return False
 
     data[artistName] = {
@@ -34,7 +36,7 @@ def addArtist(artistName: str, spotify_uri=None, albums={}, inLibrary=False):
 
 
 def addAlbum(albumName, artistName, spotify_uri=None, tracks={}, inLibrary=False):
-    if not addArtist(artistName) and data[artistName]['albums'][albumName] is not None:
+    if not addArtist(artistName) and albumName in data[artistName]['albums']:
         return False
 
     data[artistName]['albums'][albumName] = {
@@ -47,7 +49,7 @@ def addAlbum(albumName, artistName, spotify_uri=None, tracks={}, inLibrary=False
 
 
 def addTrack(trackName, albumName, artistName, spotify_uri=None, inLibrary=False):
-    if not addAlbum(albumName, artistName) and data[artistName]['albums'][albumName]['tracks'][trackName] is not None:
+    if not addAlbum(albumName, artistName) and trackName in data[artistName]['albums'][albumName]['tracks']:
         return False
 
     data[artistName]['albums'][albumName]['tracks'][trackName] = {
@@ -102,10 +104,10 @@ def getPlaylists(data: list):
 
         for item in playlist['items']:
             items.append({
-                'trackName': items['track']['trackName'],
-                'albumName': items['track']['albumName'],
-                'artistName': items['track']['artistName'],
-                'spotify_uri': items['track']['trackUri']
+                'trackName': item['track']['trackName'],
+                'albumName': item['track']['albumName'],
+                'artistName': item['track']['artistName'],
+                'spotify_uri': item['track']['trackUri']
             })
 
         result.append({
@@ -129,10 +131,10 @@ def getAlbumsFromData(data: list):
 
 
 with open("spotify/YourLibrary.json", 'r') as file:
-    library = json.load(file.read())
+    library = json.load(file)
 
     for artist in library['artists']:
-        addAlbum(artist['artist'], spotify_uri=artist['uri'], inLibrary=True)
+        addArtist(artist['name'], spotify_uri=artist['uri'], inLibrary=True)
     for album in library['albums']:
         addAlbum(album['album'], album['artist'],
                  spotify_uri=album['uri'], inLibrary=True)
@@ -140,8 +142,11 @@ with open("spotify/YourLibrary.json", 'r') as file:
         addTrack(track['track'], track['album'],
                  track['artist'], spotify_uri=track['uri'])
 
-with open("spotify/Playlists1.json", 'r') as file:
-    for playlist in getPlaylists(json.load(file.read())['playlists']):
+with open("spotify/Playlist1.json", 'r') as file:
+    for playlist in getPlaylists(json.load(file)['playlists']):
         for item in playlist['items']:
             addTrack(item['trackName'], item['albumName'],
                      item['artistName'], spotify_uri=item['spotify_uri'])
+
+with open('data.json', 'w') as file:
+    file.write(json.dumps(data, indent=2))
