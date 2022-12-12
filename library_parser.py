@@ -1,6 +1,16 @@
 #!/usr/bin/env python
 
 import json
+import sys
+from loguru import logger
+
+logger.remove()
+logger.add(
+    sys.stdout,
+    colorize=True,
+    format="<green>{time:YY.MM.DD HH:mm:ss}</green> - <level>{level}</level>: {message}",
+    level='DEBUG'
+)
 
 # I need to download every track that's in here, and every album and artist marked as "inLibrary"
 # (For those i just need to download the traks)
@@ -22,28 +32,32 @@ import json
 data = {}
 
 
-def addArtist(artistName: str, spotify_uri=None, albums={}, inLibrary=False):
+def addArtist(artistName: str, spotify_uri=None, albums=None, inLibrary=False):
     if artistName in data:
         return False
 
     data[artistName] = {
         'spotify_uri': spotify_uri,
-        'albums': albums,
-        'inLibrary': inLibrary
+        'inLibrary': inLibrary,
+        'albums': {} if albums is None else albums,
     }
+
+    logger.debug(f"addArtist: Added '{artistName}': {json.dumps(data[artistName])}")
 
     return True
 
 
-def addAlbum(albumName, artistName, spotify_uri=None, tracks={}, inLibrary=False):
+def addAlbum(albumName, artistName, spotify_uri=None, tracks=None, inLibrary=False):
     if not addArtist(artistName) and albumName in data[artistName]['albums']:
         return False
 
     data[artistName]['albums'][albumName] = {
         'spotify_uri': spotify_uri,
-        'tracks': tracks,
-        'inLibrary': inLibrary
+        'inLibrary': inLibrary,
+        'tracks': {} if tracks is None else tracks,
     }
+
+    logger.debug(f"addAlbum: In '{artistName}',\t added '{albumName}': {json.dumps(data[artistName]['albums'][albumName])}")
 
     return True
 
@@ -55,6 +69,8 @@ def addTrack(trackName, albumName, artistName, spotify_uri=None, inLibrary=False
     data[artistName]['albums'][albumName]['tracks'][trackName] = {
         'spotify_uri': spotify_uri,
         'inLibrary': inLibrary}
+
+    logger.debug(f"addTrack: In '{artistName}'\t'{albumName}',\t added '{trackName}': {json.dumps(data[artistName]['albums'][albumName]['tracks'][trackName])}")
 
     return True
 
@@ -130,6 +146,7 @@ def getAlbumsFromData(data: list):
     return data['albums']
 
 
+logger.info("Populating data structure from content of spotify/YourLibrary.json")
 with open("spotify/YourLibrary.json", 'r') as file:
     library = json.load(file)
 
@@ -140,13 +157,13 @@ with open("spotify/YourLibrary.json", 'r') as file:
                  spotify_uri=album['uri'], inLibrary=True)
     for track in library['tracks']:
         addTrack(track['track'], track['album'],
-                 track['artist'], spotify_uri=track['uri'])
+                 track['artist'], spotify_uri=track['uri'], inLibrary=True)
 
 with open("spotify/Playlist1.json", 'r') as file:
     for playlist in getPlaylists(json.load(file)['playlists']):
         for item in playlist['items']:
             addTrack(item['trackName'], item['albumName'],
-                     item['artistName'], spotify_uri=item['spotify_uri'])
+                     item['artistName'], spotify_uri=item['spotify_uri'], inLibrary=True)
 
 with open('data.json', 'w') as file:
     file.write(json.dumps(data, indent=2))
