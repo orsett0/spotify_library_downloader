@@ -4,6 +4,7 @@ import json
 import sys
 import requests
 import urllib.parse
+import subprocess
 from loguru import logger
 
 # I need to download every track that's in here, and every album and artist marked as "inLibrary"
@@ -27,9 +28,10 @@ data = {}
 
 loglevel = "DEBUG"
 completeAlbum = True
-completeArtist = False
+completeArtist = True
 
 downloadURI = []
+failed_uri = []
 
 
 class Spotify:
@@ -63,7 +65,9 @@ class Spotify:
 
         logger.debug(f"access token: {self.access_token}")
 
-    def getURI(self, artist, album=None, track=None):
+    def requestURI(self, artist, album=None, track=None):
+        logger.debug("Requesting to Spotify.")
+
         req_type = "track" if track is not None else "album" if album is not None else "artist"
         query = ""
 
@@ -80,15 +84,16 @@ class Spotify:
 
         try:
             uri = res[req_type + 's']['items'][0]['uri']
-            logger.debug(f"Found {uri} for '{artist}' - '{album}' - {track}")
         except IndexError:
-            # IndexError for "L'Officina Della Camomilla". 
+            # IndexError for "L'Officina Della Camomilla".
             # The problem is not caused from " ' ", I tested it.
             # The problem is presente even for some album.
-            logger.error(f"Cannot get uri for '{artist}' - '{album}' - '{track}'. Do it manually.")
-            uri = ""
+            logger.error(
+                f"Cannot get uri for '{artist}' - '{album}' - '{track}'. Do it manually.")
+            uri = None
 
         return uri
+
 
 def addArtist(artistName: str, spotify_uri=None, albums=None, inLibrary=False):
     if artistName in data:
@@ -184,6 +189,43 @@ def getPlaylists(data: list):
     return result
 
 
+def getURI(artist=None, album=None, track=None):
+    logger.debug(f"Getting URI for {artist} - {album} - {track}")
+
+    spotify_uri = (getArtist(artist) if album is None
+                   else getAlbum(artist, album) if track is None
+                   else getTrack(artist, album, track))['spotify_uri']
+
+    if spotify_uri is None:
+        spotify_uri = spotify.requestURI(artist, album, track)
+
+    return spotify_uri
+
+
+def askUserForURIs():
+    valid = []
+
+    user_uris = input(
+        "You can enter them now in a comma separated list (with no spaces), or leave empty and move on:")
+
+    if len(user_uris) == 0:
+        return valid
+
+    for uri in user_uris.split(","):
+        check = uri.split(":")
+
+        if len(check) != 3 or check[0] != 'spotify' or check[1] not in ['artist', 'album', 'track'] or len(check[2]) != 22:
+            logger.error(f"Invalid uri: {uri}")
+        else:
+            valid.append(uri)
+
+    if len(valid) != len(user_uris):
+        logger.warning("Some URIs you inserted aren't valid.")
+        valid += askUserForURIs()
+
+    return valid
+
+
 logger.remove()
 logger.add(
     sys.stdout,
@@ -192,7 +234,10 @@ logger.add(
     level=loglevel
 )
 
-logger.info("Populating data structure from content of spotify/YourLibrary.json")
+
+logger.info("Populating the data structure...")
+
+logger.info("Using data in spotify/YourLibrary.json")
 with open("spotify/YourLibrary.json", 'r') as file:
     library = json.load(file)
 
@@ -205,7 +250,7 @@ with open("spotify/YourLibrary.json", 'r') as file:
         addTrack(track['track'], track['album'],
                  track['artist'], spotify_uri=track['uri'], inLibrary=True)
 
-logger.info("Populating data structure from content of spotify/Playlist1.json")
+logger.info("Using data in spotify/Playlist1.json")
 with open("spotify/Playlist1.json", 'r') as file:
     for playlist in getPlaylists(json.load(file)['playlists']):
         for item in playlist['items']:
@@ -215,26 +260,47 @@ with open("spotify/Playlist1.json", 'r') as file:
 with open('data.json', 'w') as file:
     file.write(json.dumps(data, indent=2))
 
+
+logger.info("Getting URIs of all the elements")
+
 spotify = Spotify()
 
+# TODO this is orrible. i'm confident i could do it better.
 for artist in data:
     if completeArtist or getArtist(artist)['inLibrary']:
-        spotify_uri = getArtist(artist)['spotify_uri']
-        downloadURI.append(
-            spotify_uri if spotify_uri is not None else spotify.getURI(artist=artist))
+        spotify_uri = getURI(artist=artist)
+
+        if spotify_uri is None:
+            failed_uri.append({'artist': artist})
+        else:
+            downloadURI.append(spotify_uri)
+
         continue
     for album in getArtist(artist)['albums']:
         if completeAlbum or getAlbum(artist, album)['inLibrary']:
-            spotify_uri = getAlbum(artist, album)['spotify_uri']
-            downloadURI.append(
-                spotify_uri if spotify_uri is not None else spotify.getURI(artist=artist, album=album))
+            spotify_uri = getURI(artist=artist, album=album)
+
+            if spotify_uri is None:
+                failed_uri.append({'artist': artist, 'album': album})
+            else:
+                downloadURI.append(spotify_uri)
+
             continue
         for track in getAlbum(artist, album)['tracks']:
+            # It should always be in the library if it's present in the data structure, but anyway
             if getTrack(artist, album, track)['inLibrary']:
-                # TODO I'm pretty confident to say that if a traks ends up here, it's in the library
-                spotify_uri = getTrack(artist, album, track)['spotify_uri']
-                downloadURI.append(spotify_uri if spotify_uri is not None else spotify.getURI(
-                    artist=artist, album=album, track=track))
+                spotify_uri = getURI(artist=artist, album=album, track=track)
+
+                if spotify_uri is None:
+                    failed_uri.append(
+                        {'artist': artist, 'album': album, 'track': track})
+                else:
+                    downloadURI.append(spotify_uri)
+
+# TODO The "ask user" part has not been tested.
+logger.warning(f'''I was unable to get the URIs for the following elements in your library:
+{chr(10).join(" - ".join(failed.values()) for failed in failed_uri)}''')
+downloadURI += askUserForURIs()
 
 with open('uri.lst', 'w') as file:
     file.write("\n".join(downloadURI))
