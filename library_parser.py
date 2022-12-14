@@ -27,8 +27,8 @@ from loguru import logger
 data = {}
 
 loglevel = "DEBUG"
-completeAlbum = True
-completeArtist = True
+completeAlbum = False
+completeArtist = False
 
 downloadURI = []
 failed_uri = []
@@ -297,10 +297,15 @@ for artist in data:
                 else:
                     downloadURI.append(spotify_uri)
 
-# TODO The "ask user" part has not been tested.
-logger.warning(f'''I was unable to get the URIs for the following elements in your library:
+# TODO This part has not been tested.
+if len(failed_uri) != 0:
+    logger.warning(f'''I was unable to get the URIs for the following elements in your library:
 {chr(10).join(" - ".join(failed.values()) for failed in failed_uri)}''')
-downloadURI += askUserForURIs()
+    downloadURI += askUserForURIs()
 
 with open('uri.lst', 'w') as file:
     file.write("\n".join(downloadURI))
+
+
+logger.info("Calling freyr-js to download the songs.")
+subprocess.run(['./freyr-js/freyr.sh'] + downloadURI + ['--no-bar', '--no-logo', '--no-header', '--no-stats', '--no-mem-cache'])

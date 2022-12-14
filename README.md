@@ -8,7 +8,7 @@
 ## TO-DO List
 
 - Cycle through the data structure to download everything that has an uri
-- Create the playlists
+- Create the playlists (create also the one from the liked tracks.)
 
 ## License
 
