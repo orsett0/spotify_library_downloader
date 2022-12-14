@@ -7,7 +7,7 @@
 
 ## TO-DO List
 
-- Cycle through the data structure to download everything that has an uri
+- Maybe I could run freyr-js in a sequencial order for every URI. This would prevent the creation of an exagerated amount of threads.
 - Create the playlists (create also the one from the liked tracks.)
 
 ## License

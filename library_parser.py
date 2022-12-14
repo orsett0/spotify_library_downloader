@@ -203,6 +203,11 @@ def getURI(artist=None, album=None, track=None):
     return spotify_uri
 
 
+def checkValidURI(uri :str):
+    uri = uri.split(":")
+    return len(uri) == 3 and uri[0] == 'spotify' and uri[1] in ['artist', 'album', 'track'] and len(uri[2]) == 22
+
+
 def askUserForURIs():
     valid = []
 
@@ -213,9 +218,7 @@ def askUserForURIs():
         return valid
 
     for uri in user_uris.split(","):
-        check = uri.split(":")
-
-        if len(check) != 3 or check[0] != 'spotify' or check[1] not in ['artist', 'album', 'track'] or len(check[2]) != 22:
+        if checkValidURI(uri):
             logger.error(f"Invalid uri: {uri}")
         else:
             valid.append(uri)
@@ -309,22 +312,32 @@ with open('uri.lst', 'w') as file:
 
 
 logger.info("Calling freyr-js to download the songs.")
-cmd = ['./freyr-js/freyr.sh'] + downloadURI + ['--no-bar',
-                                               '--no-logo', '--no-header', '--no-stats', '--no-mem-cache']
+cmd = ['./freyr-js/freyr.sh'] + downloadURI + \
+    ['--no-bar', '--no-logo', '--no-header', '--no-stats']
 logger.debug(f"executing {' '.join(cmd)}")
-freyr = subprocess.Popen(cmd)
+# TODO Add stderr
+freyr = subprocess.Popen(cmd, stdout=subprocess.PIPE)
 
-while True:
-    output = freyr.stdout.readline() if freyr.stdout is not None else b''
-
-    if output == b'' and freyr.poll() is not None:
-        break
-    if output:
-        print(output.strip())
-
+# This loop is used to parse freyr's output so that it doesn't flood the screen.
+# It could break if Freyr were to change anything.
 with open("freyr.out", 'w') as file:
-    logger.debug("Writing freyr-js output to freyr.out")
-    output, _ = freyr.communicate()
-    file.write(output.decode())
+    current_match = None
+
+    while True:
+        out = freyr.stdout.readline() if freyr.stdout is not None else b''
+
+        if out == b'' and freyr.poll() is not None:
+            break
+        if out:
+            if checkValidURI(out.decode().strip()[1:-1]):
+                current_match = {
+                    'artist': [b'  \xe2\x9e\xa4 Artist: ', 'artist'],
+                    'album': [b'  \xe2\x9e\xa4 Album: ', 'album'],
+                    'track': [b'  \xe2\x9e\xa4 Title: ', 'track']
+                    }[out.split(b":")[1].decode()]
+            elif current_match is not None and out.startswith(current_match[0]):
+                logger.info(f"freyr-js: downloading {current_match[1]} {out.split(b':')[-1].strip().decode()}")
+
+            file.write(out.decode() + '\n')
 
 freyr.kill()
