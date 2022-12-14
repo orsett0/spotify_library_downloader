@@ -5,6 +5,7 @@ import sys
 import requests
 import urllib.parse
 import subprocess
+import os
 from loguru import logger
 
 # I need to download every track that's in here, and every album and artist marked as "inLibrary"
@@ -308,4 +309,22 @@ with open('uri.lst', 'w') as file:
 
 
 logger.info("Calling freyr-js to download the songs.")
-subprocess.run(['./freyr-js/freyr.sh'] + downloadURI + ['--no-bar', '--no-logo', '--no-header', '--no-stats', '--no-mem-cache'])
+cmd = ['./freyr-js/freyr.sh'] + downloadURI + ['--no-bar',
+                                               '--no-logo', '--no-header', '--no-stats', '--no-mem-cache']
+logger.debug(f"executing {' '.join(cmd)}")
+freyr = subprocess.Popen(cmd)
+
+while True:
+    output = freyr.stdout.readline() if freyr.stdout is not None else b''
+
+    if output == b'' and freyr.poll() is not None:
+        break
+    if output:
+        print(output.strip())
+
+with open("freyr.out", 'w') as file:
+    logger.debug("Writing freyr-js output to freyr.out")
+    output, _ = freyr.communicate()
+    file.write(output.decode())
+
+freyr.kill()
