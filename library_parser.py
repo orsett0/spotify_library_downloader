@@ -29,7 +29,7 @@ data = {}
 
 loglevel = "DEBUG"
 completeAlbum = False
-completeArtist = False
+completeArtist = True
 
 downloadURI = []
 failed_uri = []
@@ -203,30 +203,31 @@ def getURI(artist=None, album=None, track=None):
     return spotify_uri
 
 
-def checkValidURI(uri :str):
+def checkValidURI(uri: str):
     uri = uri.split(":")
     return len(uri) == 3 and uri[0] == 'spotify' and uri[1] in ['artist', 'album', 'track'] and len(uri[2]) == 22
 
 
-def askUserForURIs():
+def askUserForURIs(failed_uri):
     valid = []
+    for failed in failed_uri:
+        new_uri = None
+        while new_uri is None:
+            new_uri = input(
+                f"Enter URI for {' - '.join(failed.values())}\n(Leave empty to skip, insert 'all' to skip all): ")
 
-    user_uris = input(
-        "You can enter them now in a comma separated list (with no spaces), or leave empty and move on:")
+            if new_uri.lower == 'all':
+                return valid
 
-    if len(user_uris) == 0:
-        return valid
+            if new_uri == "":
+                break
 
-    for uri in user_uris.split(","):
-        if checkValidURI(uri):
-            logger.error(f"Invalid uri: {uri}")
-        else:
-            valid.append(uri)
+            if not checkValidURI(new_uri):
+                logger.error("Invalid URI.")
+                new_uri = None
 
-    if len(valid) != len(user_uris):
-        logger.warning("Some URIs you inserted aren't valid.")
-        valid += askUserForURIs()
-
+            failed['uri'] = new_uri
+            valid.append(failed)
     return valid
 
 
@@ -275,9 +276,12 @@ for artist in data:
         spotify_uri = getURI(artist=artist)
 
         if spotify_uri is None:
-            failed_uri.append({'artist': artist})
+            failed_uri.append({
+                'artist': artist})
         else:
-            downloadURI.append(spotify_uri)
+            downloadURI.append({
+                'artist': artist,
+                'uri': spotify_uri})
 
         continue
     for album in getArtist(artist)['albums']:
@@ -285,9 +289,13 @@ for artist in data:
             spotify_uri = getURI(artist=artist, album=album)
 
             if spotify_uri is None:
-                failed_uri.append({'artist': artist, 'album': album})
+                failed_uri.append({
+                    'album': album,
+                    'artist': artist})
             else:
-                downloadURI.append(spotify_uri)
+                downloadURI.append({
+                    'album': album,
+                    'artist': artist})
 
             continue
         for track in getAlbum(artist, album)['tracks']:
@@ -296,48 +304,41 @@ for artist in data:
                 spotify_uri = getURI(artist=artist, album=album, track=track)
 
                 if spotify_uri is None:
-                    failed_uri.append(
-                        {'artist': artist, 'album': album, 'track': track})
+                    failed_uri.append({
+                        'artist': artist,
+                        'album': album,
+                        'track': track})
                 else:
-                    downloadURI.append(spotify_uri)
+                    downloadURI.append({
+                        'artist': artist,
+                        'album': album,
+                        'track': track,
+                        'uri': spotify_uri})
 
 # TODO This part has not been tested.
 if len(failed_uri) != 0:
     logger.warning(f'''I was unable to get the URIs for the following elements in your library:
 {chr(10).join(" - ".join(failed.values()) for failed in failed_uri)}''')
-    downloadURI += askUserForURIs()
+    downloadURI += askUserForURIs(failed_uri)
 
 with open('uri.lst', 'w') as file:
-    file.write("\n".join(downloadURI))
+    file.write("\n".join(['\t'.join(uri.values()) for uri in downloadURI]))
 
 
 logger.info("Calling freyr-js to download the songs.")
-cmd = ['./freyr-js/freyr.sh'] + downloadURI + \
-    ['--no-bar', '--no-logo', '--no-header', '--no-stats']
-logger.debug(f"executing {' '.join(cmd)}")
-# TODO Add stderr
-freyr = subprocess.Popen(cmd, stdout=subprocess.PIPE)
 
-# This loop is used to parse freyr's output so that it doesn't flood the screen.
-# It could break if Freyr were to change anything.
-with open("freyr.out", 'w') as file:
-    current_match = None
+with open("freyr.out", 'a') as out,  open("freyr.err", 'a') as err:
+    for uri in downloadURI:
+        uri_type = uri['uri'].split(':')[1]
+        logger.info(f"freyr: downloading {uri_type} '{uri[uri_type]}'")
 
-    while True:
-        out = freyr.stdout.readline() if freyr.stdout is not None else b''
+        try:
+            os.mkdir("library")
+        except FileExistsError:
+            pass
 
-        if out == b'' and freyr.poll() is not None:
-            break
-        if out:
-            if checkValidURI(out.decode().strip()[1:-1]):
-                current_match = {
-                    'artist': [b'  \xe2\x9e\xa4 Artist: ', 'artist'],
-                    'album': [b'  \xe2\x9e\xa4 Album: ', 'album'],
-                    'track': [b'  \xe2\x9e\xa4 Title: ', 'track']
-                    }[out.split(b":")[1].decode()]
-            elif current_match is not None and out.startswith(current_match[0]):
-                logger.info(f"freyr-js: downloading {current_match[1]} {out.split(b':')[-1].strip().decode()}")
+        cmd = ['./freyr-js/freyr.sh', uri['uri'], '--no-bar',
+               '--no-logo', '--no-header', '--no-stats', '-d', 'library']
+        logger.debug(f"executing {' '.join(cmd)}")
 
-            file.write(out.decode() + '\n')
-
-freyr.kill()
+        freyr = subprocess.run(cmd, stdout=out, stderr=err)

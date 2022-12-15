@@ -1,6 +1,9 @@
 spotify
+freyr-js
+library
+
 data.json
 config.json
 uri.lst
 freyr.out
-freyr-js
+freyr.err
