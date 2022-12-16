@@ -7,7 +7,8 @@
 
 ## TO-DO List
 
-- Create the playlists (create also the one from the liked tracks.)
+- Create a good way to specify the various configs.
+- Add documentation
 
 ## License
 

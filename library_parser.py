@@ -8,31 +8,16 @@ import subprocess
 import os
 from loguru import logger
 
-# I need to download every track that's in here, and every album and artist marked as "inLibrary"
-# (For those i just need to download the traks)
-# {
-#     'artist1': {
-#         'spotify_uri': "spotify:artist:uri",
-#         'albums': {
-#             'album1': {
-#                 'spotify_uri': "spotify:album:uri",
-#                 'tracks': {
-#                     'track1': {
-#                         'spotify_uri': "spotify:track:uri"
-#                     },
-#                 }
-#             },
-#         },
-#     },
-# }
-data = {}
-
+# CONFIGURATION
 loglevel = "DEBUG"
 completeAlbum = False
-completeArtist = True
+completeArtist = False
 
+
+data = {}
 downloadURI = []
 failed_uri = []
+playlists = ""
 
 
 class Spotify:
@@ -155,22 +140,20 @@ def getTrack(artistName, albumName, trackName):
 
 
 # Returns a list in the form:
-# [
-#     {
-#         'name': "playlist name",
-#         'items': [
-#             {
-#                 'trackName': "track name",
-#                 'albumName': "album name",
-#                 'artistName': "artist name"
-#             }
-#         ]
-#     }
-# ]
+# {
+#     'playlist name': [
+#         {
+#             'trackName': "name",
+#             'albumName': "name",
+#             'artistName': "name",
+#             'spotify_uri': "uri"
+#         },
+#     ]
+# }
 
 
 def getPlaylists(data: list):
-    result = []
+    result = {}
     for playlist in data:
         items = []
 
@@ -182,10 +165,7 @@ def getPlaylists(data: list):
                 'spotify_uri': item['track']['trackUri']
             })
 
-        result.append({
-            'name': playlist['name'],
-            'items': items
-        })
+        result[playlist['name']] = items
 
     return result
 
@@ -257,10 +237,12 @@ with open("spotify/YourLibrary.json", 'r') as file:
 
 logger.info("Using data in spotify/Playlist1.json")
 with open("spotify/Playlist1.json", 'r') as file:
-    for playlist in getPlaylists(json.load(file)['playlists']):
-        for item in playlist['items']:
-            addTrack(item['trackName'], item['albumName'],
-                     item['artistName'], spotify_uri=item['spotify_uri'], inLibrary=True)
+    playlists = getPlaylists(json.load(file)['playlists'])
+
+    for playlist in playlists.keys():
+            for item in playlists[playlist]:
+                addTrack(item['trackName'], item['albumName'],
+                        item['artistName'], spotify_uri=item['spotify_uri'], inLibrary=True)
 
 with open('data.json', 'w') as file:
     file.write(json.dumps(data, indent=2))
@@ -342,3 +324,19 @@ with open("freyr.out", 'a') as out,  open("freyr.err", 'a') as err:
         logger.debug(f"executing {' '.join(cmd)}")
 
         freyr = subprocess.run(cmd, stdout=out, stderr=err)
+
+
+logger.info("Creating playlists.")
+cwd = os.getcwd()
+for playlist in playlists.keys():
+    with open(f"library/{playlist}.m3u8", 'w') as file:
+        file.write("#EXTM3U\n")
+
+        for tracks in playlists[playlist]:
+            content = os.listdir(f"library/{tracks['artistName']}/{tracks['albumName']}")
+            for element in content:
+                if tracks['trackName'] in element:
+                    file.write(f"{cwd}/library/{tracks['artistName']}/{tracks['albumName']}/{element}\n")
+                    break
+            else:
+                logger.error(f"Couldn't find a valid path for {tracks['artistName']} - {tracks['albumName']} - {tracks['trackName']}.")
