@@ -7,8 +7,12 @@
 
 ## TO-DO List
 
-- Create a good way to specify the various configs.
+- Improve the output when signaling error in getting URIs
 - Add documentation
+- Download in alphabetical order
+- Insert a progress bar that shows the progress of the artists
+- Find a solution to the inconsistant naming scheme of freyer (regarding special characters) and find a way to deal with utf-8 in spotify data.
+- Dump all the output from logger and freyr and all the data structure to a log file
 
 ## License
 
