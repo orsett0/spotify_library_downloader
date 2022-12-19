@@ -10,6 +10,10 @@ import click
 from loguru import logger
 
 
+spotify = None
+data = None
+
+
 class Spotify:
     def __init__(self):
 
@@ -168,6 +172,13 @@ def checkValidURI(uri: str) -> bool:
     return len(uri) == 3 and uri[0] == 'spotify' and uri[1] in ['artist', 'album', 'track'] and len(uri[2]) == 22
 
 
+def getURIType(uri: str) -> str | None:
+    if not checkValidURI(uri):
+        return None
+
+    return uri.split(':')[1]
+
+
 def askUserForURIs(failed_uri) -> list[str]:
     valid = []
     for failed in failed_uri:
@@ -264,7 +275,7 @@ def downloadLibrary(downloadURI, output_dir: str) -> None:
     with open("freyr.out", 'a') as out,  open("freyr.err", 'a') as err:
 
         for uri in downloadURI:
-            uri_type = uri['uri'].split(':')[1]
+            uri_type = getURIType(uri['uri'])
             logger.info(f"freyr: downloading {uri_type} '{uri[uri_type]}'")
 
             cmd = ['./freyr-js/freyr.sh', uri['uri'], '--no-bar',
@@ -296,6 +307,21 @@ def createPlaylists(playlists: dict, lib_dir: str) -> None:
                 else:
                     logger.error(
                         f"Couldn't find a valid path for {tracks['artistName']} - {tracks['albumName']} - {tracks['trackName']}.")
+
+
+def uriSorter(URIs: list[dict]) -> list[dict]:
+    sorted = []
+
+    uri_IDs = [ uri[getURIType(uri['uri'])] for uri in URIs]
+    uri_IDs.sort()
+
+    for id in uri_IDs:
+        for uri in URIs:
+            if uri[getURIType(uri['uri'])] == id:
+                sorted.append(uri)
+                break
+
+    return sorted
 
 
 @click.command()
@@ -367,6 +393,8 @@ def main(spotify_data: str, output_dir: str,
          only_playlists: bool, only_download: bool,
          debug: bool) -> None:
 
+    global spotify, data
+
     logger.remove()
     logger.add(
         sys.stdout,
@@ -374,6 +402,9 @@ def main(spotify_data: str, output_dir: str,
         format="<green>{time:HH:mm:ss}</green> - <level>{level}</level>: {message}",
         level='DEBUG' if debug else 'INFO'
     )
+
+    data = Data()
+    spotify = Spotify()
 
     logger.info("Populating the data structure...")
 
@@ -407,15 +438,12 @@ def main(spotify_data: str, output_dir: str,
                               item['artistName'], spotify_uri=item['spotify_uri'], inLibrary=True)
 
     if not only_playlists:
-        URIs = list[dict]
+        URIs = uriSorter(uriFetcher(complete_albums, complete_artist))
         downloadLibrary(URIs, output_dir)
 
     if not only_download and not no_playlists:
         createPlaylists(playlists, output_dir)
-
-
-data = Data()
-spotify = Spotify()
+        
 
 if __name__ == '__main__':
     main()
