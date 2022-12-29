@@ -282,7 +282,7 @@ def downloadLibrary(downloadURI, output_dir: str, atomic_parsley: str) -> None:
                    '--no-logo', '--no-header', '--no-stats', '-d', output_dir]
             if atomic_parsley is not None:
                 cmd += ['--atomic-parsley', atomic_parsley]
-            
+
             logger.debug(f"executing {' '.join(cmd)}")
 
             # TODO stderr should be also printed with logger.error
@@ -291,26 +291,28 @@ def downloadLibrary(downloadURI, output_dir: str, atomic_parsley: str) -> None:
             freyr = subprocess.run(cmd, stdout=out, stderr=err)
 
 
+def filenamify(name: str) -> str:
+    return subprocess.run(
+        ['node', 'filenamify-cli/cli.js', name, '--replacement', '_'], stdout=subprocess.PIPE).stdout.decode().strip()
+
+
 def createPlaylists(playlists: dict, lib_dir: str) -> None:
     logger.info("Creating playlists.")
 
     cwd = os.getcwd()
     for playlist in playlists.keys():
-        with open(f"{lib_dir}/{playlist}.m3u8", 'w') as file:
+        with open(f"{lib_dir}/{filenamify(playlist)}.m3u8", 'w') as file:
             file.write("#EXTM3U\n")
 
             for tracks in playlists[playlist]:
-                content = os.listdir(
-                    f"{lib_dir}/{tracks['artistName']}/{tracks['albumName']}")
+                track_dir = f"{lib_dir}/{filenamify(tracks['artistName'])}/{filenamify(tracks['albumName'])}"
+                content = os.listdir(track_dir)
                 for element in content:
+                    # TODO it would be better to use a more secure procedure to get the exact name as freyr-js intended.
+                    # See freyr-js/cli.js:1336
                     if tracks['trackName'] in element:
                         # This should be okay, but I don't have a test case with a song marked as "Various Artists"
-                        path_to_track = str(subprocess.run([
-                            'node', 'filenamify-cli/cli.js',
-                            f"{cwd}/{lib_dir}/{tracks['artistName']}/{tracks['albumName']}/{element}\n",
-                            '--replacement', '_'
-                        ], stdout=subprocess.PIPE).stdout)
-
+                        path_to_track = f"{cwd}/{track_dir}/{filenamify(element)}\n"
                         file.write(path_to_track)
                         break
                 else:
@@ -454,7 +456,7 @@ def main(spotify_data: str, output_dir: str, atomic_parsley: str | None,
 
     if not only_playlists:
         URIs = uriSorter(uriFetcher(complete_albums, complete_artist))
-        downloadLibrary(URIs, atomic_parsley, output_dir)
+        downloadLibrary(URIs, output_dir, atomic_parsley)
 
     if not only_download and not no_playlists:
         createPlaylists(playlists, output_dir)

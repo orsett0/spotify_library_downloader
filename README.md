@@ -26,6 +26,7 @@ If you download it manually make sure to put it in the PATH.
 - **Add documentation**
 - **Add a license**
 - **Automatically analyze the user's profile using APIs**
+- **Add option to use absolute or relative path in playlist files**
 
 ## License
 
