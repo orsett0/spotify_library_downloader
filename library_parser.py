@@ -301,8 +301,14 @@ def createPlaylists(playlists: dict, lib_dir: str) -> None:
                     f"{lib_dir}/{tracks['artistName']}/{tracks['albumName']}")
                 for element in content:
                     if tracks['trackName'] in element:
-                        file.write(
-                            f"{cwd}/{lib_dir}/{tracks['artistName']}/{tracks['albumName']}/{element}\n")
+                        # This should be okay, but I don't have a test case with a song marked as "Various Artists"
+                        path_to_track = str(subprocess.run([
+                            'node', 'filenamify-cli/cli.js',
+                            f"{cwd}/{lib_dir}/{tracks['artistName']}/{tracks['albumName']}/{element}\n",
+                            '--replacement', '_'
+                        ], stdout=subprocess.PIPE).stdout)
+
+                        file.write(path_to_track)
                         break
                 else:
                     logger.error(
@@ -312,7 +318,7 @@ def createPlaylists(playlists: dict, lib_dir: str) -> None:
 def uriSorter(URIs: list[dict]) -> list[dict]:
     sorted = []
 
-    uri_IDs = [ uri[getURIType(uri['uri'])] for uri in URIs]
+    uri_IDs = [uri[getURIType(uri['uri'])] for uri in URIs]
     uri_IDs.sort()
 
     for id in uri_IDs:
@@ -443,7 +449,7 @@ def main(spotify_data: str, output_dir: str,
 
     if not only_download and not no_playlists:
         createPlaylists(playlists, output_dir)
-        
+
 
 if __name__ == '__main__':
     main()

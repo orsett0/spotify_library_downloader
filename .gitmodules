@@ -1,3 +1,6 @@
 [submodule "freyr-js"]
 	path = freyr-js
 	url = git@github.com:miraclx/freyr-js.git
+[submodule "filenamify-cli"]
+	path = filenamify-cli
+	url = git@github.com:sindresorhus/filenamify-cli.git
