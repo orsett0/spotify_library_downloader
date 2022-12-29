@@ -26,7 +26,6 @@ If you download it manually make sure to put it in the PATH.
 - **Add documentation**
 - **Add a license**
 - **Automatically analyze the user's profile using APIs**
-- **Let the user choose a path for AthomicParsley**
 
 ## License
 

@@ -264,7 +264,7 @@ def uriFetcher(completeAlbum: bool, completeArtist: bool) -> list[dict]:
     return downloadURI
 
 
-def downloadLibrary(downloadURI, output_dir: str) -> None:
+def downloadLibrary(downloadURI, output_dir: str, atomic_parsley: str) -> None:
     logger.info("Calling freyr-js to download the songs.")
 
     try:
@@ -280,6 +280,9 @@ def downloadLibrary(downloadURI, output_dir: str) -> None:
 
             cmd = ['./freyr-js/freyr.sh', uri['uri'], '--no-bar',
                    '--no-logo', '--no-header', '--no-stats', '-d', output_dir]
+            if atomic_parsley is not None:
+                cmd += ['--atomic-parsley', atomic_parsley]
+            
             logger.debug(f"executing {' '.join(cmd)}")
 
             # TODO stderr should be also printed with logger.error
@@ -346,6 +349,12 @@ def uriSorter(URIs: list[dict]) -> list[dict]:
     help="Directory where to download songs"
 )
 @click.option(
+    '--atomic-parsley',
+    type=click.STRING,
+    default=None,
+    help="Specify a path for AtomicParsley"
+)
+@click.option(
     "--complete-albums",
     is_flag=True,
     default=False,
@@ -393,7 +402,7 @@ def uriSorter(URIs: list[dict]) -> list[dict]:
     default=False,
     type=click.BOOL,
 )
-def main(spotify_data: str, output_dir: str,
+def main(spotify_data: str, output_dir: str, atomic_parsley: str | None,
          complete_albums: bool, complete_artist: bool,
          no_library: bool, no_playlists: bool,
          only_playlists: bool, only_download: bool,
@@ -445,7 +454,7 @@ def main(spotify_data: str, output_dir: str,
 
     if not only_playlists:
         URIs = uriSorter(uriFetcher(complete_albums, complete_artist))
-        downloadLibrary(URIs, output_dir)
+        downloadLibrary(URIs, atomic_parsley, output_dir)
 
     if not only_download and not no_playlists:
         createPlaylists(playlists, output_dir)
