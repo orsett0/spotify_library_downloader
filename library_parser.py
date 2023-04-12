@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+# Copyright (C) 2023 Alessio Orsini <alessiorsini.ao@proton.me>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# 
+# A copy of the GNU General Public License is available in the 
+# LICENSE file, in the project root directory.
+
 import json
 import sys
 import requests
