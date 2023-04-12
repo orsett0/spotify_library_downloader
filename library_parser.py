@@ -65,9 +65,6 @@ class Spotify:
         try:
             uri = res[req_type + 's']['items'][0]['uri']
         except IndexError:
-            # IndexError for "L'Officina Della Camomilla".
-            # The problem is not caused from " ' ", I tested it.
-            # The problem is presente even for some album.
             logger.error(
                 f"Cannot get uri for '{artist}' - '{album}' - '{track}'. Do it manually.")
             uri = None
@@ -287,7 +284,8 @@ def downloadLibrary(downloadURI, output_dir: str, atomic_parsley: str) -> None:
 
             # TODO stderr should be also printed with logger.error
             # Consider also notifying the user if one or more
-            # of the songs he has in his library have not been downloaded.
+            # of the songs he has in his library have not been downloaded,
+            # and add an option (interactive?) to show a complete list.
             freyr = subprocess.run(cmd, stdout=out, stderr=err)
 
 
@@ -311,7 +309,6 @@ def createPlaylists(playlists: dict, lib_dir: str) -> None:
                     # TODO it would be better to use a more secure procedure to get the exact name as freyr-js intended.
                     # See freyr-js/cli.js:1336
                     if tracks['trackName'] in element:
-                        # This should be okay, but I don't have a test case with a song marked as "Various Artists"
                         path_to_track = f"{cwd}/{track_dir}/{filenamify(element)}\n"
                         file.write(path_to_track)
                         break
