@@ -313,6 +313,12 @@ def createPlaylists(playlists: dict, lib_dir: str) -> None:
 
             for tracks in playlists[playlist]:
                 track_dir = f"{lib_dir}/{filenamify(tracks['artistName'])}/{filenamify(tracks['albumName'])}"
+
+                if not os.path.isdir(track_dir):
+                    logger.error(
+                        f"Couldn't find a valid path for album {tracks['artistName']} - {tracks['albumName']}")
+                    continue
+
                 content = os.listdir(track_dir)
                 for element in content:
                     # TODO it would be better to use a more secure procedure to get the exact name as freyr-js intended.
@@ -323,7 +329,7 @@ def createPlaylists(playlists: dict, lib_dir: str) -> None:
                         break
                 else:
                     logger.error(
-                        f"Couldn't find a valid path for {tracks['artistName']} - {tracks['albumName']} - {tracks['trackName']}.")
+                        f"Couldn't find a valid path for track {tracks['artistName']} - {tracks['albumName']} - {tracks['trackName']}.")
 
 
 def uriSorter(URIs: list[dict]) -> list[dict]:
