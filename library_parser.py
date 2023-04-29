@@ -271,7 +271,7 @@ def downloadLibrary(downloadURI, output_dir: str, atomic_parsley: str) -> None:
     logger.info("Calling freyr-js to download the songs.")
 
     try:
-        os.mkdir("library")
+        os.mkdir(output_dir)
     except FileExistsError:
         pass
 
@@ -342,16 +342,16 @@ def uriSorter(URIs: list[dict]) -> list[dict]:
 @click.option(
     "--spotify-data",
     "-d",
-    default="./spotify",
+    default="./MyData",
     type=click.STRING,
-    help="point to a folder containing the files 'YourLibrary.json' and 'Playlist1.json'",
+    help="point to a folder containing the files 'YourLibrary.json' and 'Playlist1.json'. Default: './MyData'",
 )
 @click.option(
     "--output-dir",
     "-o",
     default="./library",
     type=click.STRING,
-    help="Directory where to download songs"
+    help="Directory where to download songs. Default: './library'"
 )
 @click.option(
     '--atomic-parsley',
