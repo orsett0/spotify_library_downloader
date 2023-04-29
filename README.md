@@ -26,12 +26,12 @@ If you download it manually, make sure to put it in the PATH or use the `--atomi
   - Insert a progress bar that shows the progress of the artists
   - Dump all the output from logger and freyr and all the data structure to a log file
   - List the items for which the program was unable to get a uri in a nicer way
+  - Parse freyr output to show failed downloads.
+  - Use only one line to show the progress, don't flood the console.
 - **Add documentation**
-- **Add a license**
 - **Automatically analyze the user's profile using APIs**
 - **Add option to download artists mix and all the songs.**
 - **Add option to use absolute or relative path in playlist files**
-- **Selecting an output directory should be mandatory.**
 - **Make an installation script**
 
 ## License
