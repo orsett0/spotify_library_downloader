@@ -8,6 +8,7 @@
 
 import json
 import sys
+import time
 import requests
 import urllib.parse
 import subprocess
@@ -275,7 +276,9 @@ def downloadLibrary(downloadURI, output_dir: str, atomic_parsley: str) -> None:
     except FileExistsError:
         pass
 
-    with open("freyr.out", 'a') as out,  open("freyr.err", 'a') as err:
+    log_name = f"log/{str(int(time.time()))}"
+
+    with open(f"{log_name}.out", 'w') as out,  open(f"{log_name}.err", 'w') as err:
 
         for uri in downloadURI:
             uri_type = getURIType(uri['uri'])

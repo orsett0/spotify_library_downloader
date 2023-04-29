@@ -1,8 +1,9 @@
-spotify
+# directories
+MyData
 library
+log
 
+# files
 data.json
 config.json
 uri.lst
-freyr.out
-freyr.err
