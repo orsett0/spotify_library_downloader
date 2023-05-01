@@ -33,6 +33,10 @@ If you download it manually, make sure to put it in the PATH or use the `--atomi
 - **Add option to download artists mix and all the songs.**
 - **Add option to use absolute or relative path in playlist files**
 - **Make an installation script**
+- **Solve some problems with searching files to populate the playlists**
+  - Some albums/traks have different names than what spotify says. (I assume) this can happen when an artist changes the name of an album after the user put the song in a playlist. It can also happen that at some point in time some ascii characters or characters sequence get replaced from an unicode equivalent (example: '-' -> '–', '...' -> '…').
+- **Add ability to not overwrite local changes made to playlists**
+- **Clear freyr cache at every call**
 
 ## License
 

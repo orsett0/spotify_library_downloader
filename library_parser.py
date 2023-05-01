@@ -2,8 +2,8 @@
 
 # Copyright (C) 2023 Alessio Orsini <alessiorsini.ao@proton.me>
 # SPDX-License-Identifier: GPL-3.0-or-later
-# 
-# A copy of the GNU General Public License is available in the 
+#
+# A copy of the GNU General Public License is available in the
 # LICENSE file, in the project root directory.
 
 import json
@@ -300,36 +300,71 @@ def downloadLibrary(downloadURI, output_dir: str, atomic_parsley: str) -> None:
 
 def filenamify(name: str) -> str:
     return subprocess.run(
-        ['node', 'filenamify-cli/cli.js', name, '--replacement', '_'], stdout=subprocess.PIPE).stdout.decode().strip()
+        ['node', 'filenamify-cli/cli.js', name, '--replacement', '_'], stdout=subprocess.PIPE).stdout.decode().strip('\n')
+
+
+# def filenamify(string: str, replacement='_') -> str:
+#     p = subprocess.Popen(
+#         ["node", "filenamify-cli/cli.js", string,
+#             f"--replacement='{replacement}'"],
+#         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#     out, err = p.communicate()
+
+#     if err == b'':
+#         logger.error(f"filenamify-cli: error when sanitizing string '{string}': {err}")
+#         exit(1)
+
+#     return out.decode().strip('\n)
 
 
 def createPlaylists(playlists: dict, lib_dir: str) -> None:
     logger.info("Creating playlists.")
 
-    cwd = os.getcwd()
+    def sanitize(string: str) -> str:
+        return "".join([c for c in string if 31 < ord(c) < 127]).upper()
+
+    def loopElement(base_path: str, track_val: dict, type: str) -> bool:
+        path = os.path.join(base_path, track_val[type])
+
+        if (type == 'track' and os.path.isfile(path)):
+            file.write(f"# SLD - ors3tto\r\n{path}\r\n")
+            return True
+        
+        if (type != 'track' and os.path.isdir(path)) and loopElement(path, track_val, 'track' if type == 'album' else 'album'):
+            return True
+
+        for elem in os.listdir(base_path):
+            path = os.path.join(base_path, elem)
+            
+            # The first test case should always be true.
+            if (not ((type == 'track' and os.path.isfile(path)) or (type != 'track' and os.path.isdir(path))) 
+                or sanitize(track_val[type]) not in sanitize(elem)):
+                continue
+            
+            if type == 'track':
+                file.write(f"# SLD - ors3tto\r\n{path}\r\n")
+                return True
+                
+            if loopElement(path, track_val, 'track' if type == 'album' else 'album'): return True
+        else:
+            #logger.warning(f"No valid path for {type} '{track_val[type]}'")
+            return False
+    
+    lib_dir = os.path.normpath(os.path.join(os.getcwd(), lib_dir))
+
     for playlist in playlists.keys():
         with open(f"{lib_dir}/{filenamify(playlist)}.m3u8", 'w') as file:
-            file.write("#EXTM3U\n")
+            file.write("#EXTM3U\r\n")
 
-            for tracks in playlists[playlist]:
-                track_dir = f"{lib_dir}/{filenamify(tracks['artistName'])}/{filenamify(tracks['albumName'])}"
+            for track in playlists[playlist]:
+                track_val = {
+                    'artist': filenamify(track['artistName']),
+                    'album': filenamify(track['albumName']),
+                    'track': filenamify(track['trackName']),
+                }
 
-                if not os.path.isdir(track_dir):
-                    logger.error(
-                        f"Couldn't find a valid path for album {tracks['artistName']} - {tracks['albumName']}")
-                    continue
-
-                content = os.listdir(track_dir)
-                for element in content:
-                    # TODO it would be better to use a more secure procedure to get the exact name as freyr-js intended.
-                    # See freyr-js/cli.js:1336
-                    if tracks['trackName'] in element:
-                        path_to_track = f"{cwd}/{track_dir}/{filenamify(element)}\n"
-                        file.write(path_to_track)
-                        break
-                else:
-                    logger.error(
-                        f"Couldn't find a valid path for track {tracks['artistName']} - {tracks['albumName']} - {tracks['trackName']}.")
+                if not loopElement(lib_dir, track_val, 'artist'):
+                    logger.error(f"Couldn't find a valid path for '{track['artistName']}' - '{track['albumName']}' - '{track['trackName']}'.")
 
 
 def uriSorter(URIs: list[dict]) -> list[dict]:
